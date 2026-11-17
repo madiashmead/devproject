@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B4P Contact Finder</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <div>
+        <h1>B4P Contact Finder</h1>
+        <p class="sub">AI does the first search. A person verifies before outreach.</p>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="find" class="active">1 · Find</button>
+        <button role="tab" data-tab="review">2 · Review <span class="count" id="review-count"></span></button>
+        <button role="tab" data-tab="contacted">Already contacted <span class="count" id="contacted-count"></span></button>
+        <button role="tab" data-tab="results">Results</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- FIND -------------------------------------------------------------->
+    <section id="tab-find" class="tab-panel">
+      <div class="card step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h2>What are we looking for?</h2>
+          <p class="hint">Describe the organizations once. The prompt tells Claude to skip everything on the
+            <a href="#" data-goto="contacted">already-contacted list</a>
+            (<span id="contacted-inline">0</span> orgs) and anything already in Review.</p>
+          <label for="criteria" class="label">Search criteria</label>
+          <textarea id="criteria" rows="3"></textarea>
+          <div class="row">
+            <label class="label inline" for="target">How many organizations</label>
+            <input id="target" type="number" min="1" max="25" value="10">
+          </div>
+        </div>
+      </div>
+
+      <div class="card step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h2>Run the search in Claude.ai</h2>
+          <ol class="steps">
+            <li>Copy the prompt. It includes your criteria, the contacted list, and the format to answer in.</li>
+            <li>Open a new chat in <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">Claude.ai</a>.
+              Make sure <b>web search</b> is turned on (the tools / <b>+</b> menu next to the message box).</li>
+            <li>Paste the prompt, send it, and wait for Claude to finish (a few minutes).</li>
+          </ol>
+          <div class="row">
+            <button id="copy-prompt" class="primary">Copy prompt</button>
+            <a class="button" href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">Open Claude.ai ↗</a>
+            <button id="show-prompt" class="link">Show prompt</button>
+            <span id="copy-msg" class="hint" style="margin:0"></span>
+          </div>
+          <textarea id="prompt-text" rows="10" readonly hidden></textarea>
+        </div>
+      </div>
+
+      <div class="card step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h2>Paste Claude's reply</h2>
+          <p class="hint">Copy Claude's whole answer (the copy icon under its reply works) and paste it here.
+            The organizations go to <b>Review</b>; any already contacted or already listed are skipped.</p>
+          <textarea id="paste" rows="7" placeholder="Paste Claude's reply here…"></textarea>
+          <div class="row">
+            <button id="import" class="primary">Add to Review</button>
+          </div>
+          <div id="search-status" class="status" hidden></div>
+        </div>
+      </div>
+
+      <div id="api-option" class="card" hidden>
+        <h2>Or run it automatically</h2>
+        <p class="hint">An API key is set up, so the app can run the search itself (billed to the API account).</p>
+        <button id="run-search">Search automatically</button>
+      </div>
+
+      <div class="card">
+        <h2>Past searches</h2>
+        <div id="searches" class="list"></div>
+      </div>
+    </section>
+
+    <!-- REVIEW ------------------------------------------------------------>
+    <section id="tab-review" class="tab-panel" hidden>
+      <div class="card">
+        <div class="row space">
+          <div>
+            <h2>Verify before outreach</h2>
+            <p class="hint">Check each contact against the organization's own website or with a quick call,
+              then mark it. Click <b>Start check</b> to time yourself; the time feeds the Results tab.</p>
+          </div>
+          <div class="row">
+            <label class="label inline" for="verifier">Your name</label>
+            <input id="verifier" type="text" placeholder="e.g. Jordan">
+          </div>
+        </div>
+        <div class="row filters" role="group" aria-label="Filter by status">
+          <button class="chip active" data-filter="new">To check</button>
+          <button class="chip" data-filter="verified">Verified</button>
+          <button class="chip" data-filter="needs_call">Needs a call</button>
+          <button class="chip" data-filter="outdated">Outdated</button>
+          <button class="chip" data-filter="rejected">Not a fit</button>
+          <button class="chip" data-filter="">All</button>
+          <span class="grow"></span>
+          <a class="button" id="export" href="/api/leads.csv?status=verified">Export verified (CSV)</a>
+        </div>
+      </div>
+      <div id="leads"></div>
+    </section>
+
+    <!-- CONTACTED --------------------------------------------------------->
+    <section id="tab-contacted" class="tab-panel" hidden>
+      <div class="card">
+        <h2>Already contacted</h2>
+        <p class="hint">Paste your existing list, one organization per line. Add a website after a comma
+          (<code>Corner Health Center, cornerhealth.org</code>) to catch name variations.
+          Organizations are added here automatically when you mark a lead as emailed.</p>
+        <textarea id="bulk" rows="6" placeholder="Packard Health&#10;SafeHouse Center, safehousecenter.org&#10;..."></textarea>
+        <div class="row"><button id="add-bulk" class="primary">Add to list</button><span id="bulk-msg" class="hint"></span></div>
+      </div>
+      <div class="card">
+        <div class="row space">
+          <h2>List</h2>
+          <input id="contacted-filter" type="search" placeholder="Search list">
+        </div>
+        <div id="contacted" class="list"></div>
+      </div>
+    </section>
+
+    <!-- RESULTS ----------------------------------------------------------->
+    <section id="tab-results" class="tab-panel" hidden>
+      <div id="metrics"></div>
+      <div class="card">
+        <h2>Before-AI numbers</h2>
+        <p class="hint">Enter what outreach looked like before this tool so the comparison above has a baseline.</p>
+        <div class="grid3">
+          <label>Minutes of research per org<input id="b-minutes" type="number" min="0" step="1"></label>
+          <label>Bounce rate (%)<input id="b-bounce" type="number" min="0" max="100" step="0.1"></label>
+          <label>Response rate (%)<input id="b-response" type="number" min="0" max="100" step="0.1"></label>
+        </div>
+        <div class="row"><button id="save-baseline">Save baseline</button><span id="baseline-msg" class="hint"></span></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
